@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  audio-to-video:
+    build: .
+    ports:
+      - "8085:8000"
+    networks:
+      - runtipi_tipi_main_network
+    restart: unless-stopped
+
+networks:
+  runtipi_tipi_main_network:
+    external: true
