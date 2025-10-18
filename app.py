@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import requests
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 app = FastAPI(title="Video Audio Tools API", description="Comprehensive audio and video processing tools")
 
@@ -76,6 +76,32 @@ class WaveformRequest(BaseModel):
     width: int = 800
     height: int = 200
     color: str = "blue"
+
+# Video Effects models
+class VideoEffectOption(BaseModel):
+    option: str
+    argument: str
+
+class VideoEffectInput(BaseModel):
+    file_url: str
+    options: List[VideoEffectOption] = []
+
+class VideoEffectFilter(BaseModel):
+    filter: str
+
+class VideoEffectOutput(BaseModel):
+    options: List[VideoEffectOption] = []
+
+class VideoEffectMetadata(BaseModel):
+    duration: bool = False
+    filesize: bool = False
+
+class VideoEffectRequest(BaseModel):
+    id: str
+    inputs: List[VideoEffectInput]
+    filters: List[VideoEffectFilter] = []
+    outputs: List[VideoEffectOutput] = []
+    metadata: VideoEffectMetadata = VideoEffectMetadata()
 
 # Utility functions
 def download_file(url: str, temp_dir: str, filename: str = None) -> str:
@@ -542,6 +568,304 @@ async def get_video_info(request: ProbeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Video Effects endpoint
+@app.post("/apply-video-effect")
+async def apply_video_effect(request: VideoEffectRequest):
+    """Apply video effects using FFmpeg filter chains"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Download input files
+        input_paths = []
+        for i, input_item in enumerate(request.inputs):
+            filename = f"input_{i}.mp4"
+            path = download_file(input_item.file_url, temp_dir, filename)
+            input_paths.append(path)
+        
+        output_path = os.path.join(temp_dir, "output.mp4")
+        
+        # Build FFmpeg command
+        cmd = ["ffmpeg"]
+        
+        # Add input options and files
+        for input_item in request.inputs:
+            for option in input_item.options:
+                cmd.extend([option.option, option.argument])
+            # Add the input file
+            cmd.extend(["-i", input_paths[request.inputs.index(input_item)]])
+        
+        # Add filter complex if filters are provided
+        if request.filters:
+            filter_parts = []
+            for filter_item in request.filters:
+                filter_parts.append(filter_item.filter)
+            filter_complex = ",".join(filter_parts)
+            cmd.extend(["-filter_complex", filter_complex])
+        
+        # Add output options
+        for output_item in request.outputs:
+            for option in output_item.options:
+                cmd.extend([option.option, option.argument])
+        
+        # Default output settings if no output options provided
+        if not request.outputs:
+            cmd.extend(["-c:v", "libx264", "-c:a", "aac", "-y", output_path])
+        else:
+            cmd.extend(["-y", output_path])
+        
+        # Execute FFmpeg command
+        subprocess.run(cmd, check=True, capture_output=True)
+        
+        # Get metadata if requested
+        response_data = {"output_url": "processed_video.mp4"}
+        
+        if request.metadata.duration or request.metadata.filesize:
+            metadata = {}
+            if request.metadata.duration:
+                duration_cmd = [
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration", 
+                    "-of", "default=noprint_wrappers=1:nokey=1", output_path
+                ]
+                duration_result = subprocess.run(duration_cmd, capture_output=True, text=True)
+                if duration_result.returncode == 0:
+                    metadata["duration"] = float(duration_result.stdout.strip())
+            
+            if request.metadata.filesize:
+                metadata["filesize"] = os.path.getsize(output_path)
+            
+            response_data["metadata"] = metadata
+        
+        # Return the processed video file
+        return FileResponse(output_path, media_type='video/mp4', filename="processed_video.mp4")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/video-effects")
+async def get_video_effects():
+    """Get list of predefined video effects with examples"""
+    return {
+        "effects": {
+            "pan_crop_vertical": {
+                "description": "Pan and crop image to vertical video format",
+                "example": {
+                    "id": "pan_crop_vertical",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/image.jpg",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(ow-iw)/2:(oh-ih)/2"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "options": [
+                                {"option": "-c:v", "argument": "libx264"},
+                                {"option": "-tune", "argument": "stillimage"},
+                                {"option": "-preset", "argument": "fast"}
+                            ]
+                        }
+                    ],
+                    "metadata": {"duration": True}
+                }
+            },
+            "zoom_in_center": {
+                "description": "Zoom in to center of video",
+                "example": {
+                    "id": "zoom_in_center",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "zoompan=z='min(max(zoom,pzoom)+0.0015,2)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "fade_in_out": {
+                "description": "Add fade in and fade out effects",
+                "example": {
+                    "id": "fade_in_out",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "fade=t=in:st=0:d=1,fade=t=out:st=4:d=1"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "blur_background": {
+                "description": "Apply blur effect to video background",
+                "example": {
+                    "id": "blur_background",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "boxblur=10"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "sepia_tone": {
+                "description": "Apply sepia color effect",
+                "example": {
+                    "id": "sepia_tone",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "speed_ramp": {
+                "description": "Apply speed ramping effect (slow to fast)",
+                "example": {
+                    "id": "speed_ramp",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "setpts=PTS*2-2*PTS*exp(-PTS),atempo=1+exp(-PTS)"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "vignette": {
+                "description": "Add vignette effect to video",
+                "example": {
+                    "id": "vignette",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "vignette=PI/4"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "mirror_flip": {
+                "description": "Mirror flip the video horizontally",
+                "example": {
+                    "id": "mirror_flip",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "hflip"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "grayscale": {
+                "description": "Convert video to grayscale",
+                "example": {
+                    "id": "grayscale",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "format=gray"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "stabilize": {
+                "description": "Apply video stabilization",
+                "example": {
+                    "id": "stabilize",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "vidstabdetect=shakiness=10:accuracy=15,vidstabtransform=smoothing=30"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "text_overlay": {
+                "description": "Add text overlay to video",
+                "example": {
+                    "id": "text_overlay",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "drawtext=text='Sample Text':fontsize=50:fontcolor=white:x=100:y=100"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            }
+        },
+        "usage": "Use /apply-video-effect endpoint with the example JSON structures above"
+    }
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "video-audio-tools"}
@@ -559,6 +883,9 @@ async def root():
         "probe_tools": [
             "probe-media", "get-duration", "get-thumbnail", "get-waveform",
             "get-audio-info", "get-video-info"
+        ],
+        "video_effects": [
+            "apply-video-effect", "video-effects"
         ],
         "health": "/health"
     }
