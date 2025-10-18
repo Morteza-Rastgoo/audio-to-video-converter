@@ -174,7 +174,7 @@ async def cut_mp3(request: CutRequest):
         cmd = ["ffmpeg", "-i", audio_path, "-ss", request.start_time]
         if request.duration:
             cmd.extend(["-t", request.duration])
-        cmd.extend(["-c", "copy", "-y", output_path])
+        cmd.extend(["-c:a", "libmp3lame", "-y", output_path])
         
         subprocess.run(cmd, check=True, capture_output=True)
         return FileResponse(output_path, media_type='audio/mpeg', filename="cut.mp3")
@@ -221,7 +221,7 @@ async def merge_audio(request: MergeRequest):
                 f.write(f"file '{path}'\n")
         
         output_path = os.path.join(temp_dir, f"output.{request.output_format}")
-        cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", concat_file, "-c", "copy", "-y", output_path]
+        cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", concat_file, "-c:a", "libmp3lame", "-y", output_path]
         subprocess.run(cmd, check=True, capture_output=True)
         
         return FileResponse(output_path, media_type='audio/mpeg', filename="merged.mp3")
