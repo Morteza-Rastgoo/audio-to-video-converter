@@ -176,6 +176,40 @@ async def audio_to_video(request: AudioToVideoRequest):
             filter_complex = "fade=t=in:st=0:d=2:alpha=1"
         elif request.effect == "blur_to_clear":
             filter_complex = "boxblur=10:enable='lt(t,0.5)',boxblur=0:enable='gte(t,0.5)'"
+        elif request.effect == "pixelized_to_clear":
+            filter_complex = "scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='lt(t,0.5)',scale=iw:ih:enable='gte(t,0.5)'"
+        elif request.effect == "clear_to_blurred":
+            filter_complex = "boxblur=0:enable='lt(t,0.5)',boxblur=10:enable='gte(t,0.5)'"
+        elif request.effect == "clear_to_pixelized":
+            filter_complex = "scale=iw:ih:enable='lt(t,0.5)',scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='gte(t,0.5)'"
+        elif request.effect == "fade_out":
+            filter_complex = "fade=t=out:st=0:d=2:alpha=1"
+        elif request.effect == "wipe_left":
+            filter_complex = "crop=1920:1080:(1920-1920*progress):0,scale=1920:1080"
+        elif request.effect == "wipe_right":
+            filter_complex = "crop=1920:1080:(0-1920*progress):0,scale=1920:1080"
+        elif request.effect == "wipe_up":
+            filter_complex = "crop=1920:1080:0:(1080-1080*progress),scale=1920:1080"
+        elif request.effect == "wipe_down":
+            filter_complex = "crop=1920:1080:0:(0-1080*progress),scale=1920:1080"
+        elif request.effect == "slide_left":
+            filter_complex = "crop=1920:1080:(1920-1920*progress):0,pad=1920:1080:0:0:black,scale=1920:1080"
+        elif request.effect == "slide_right":
+            filter_complex = "crop=1920:1080:(0-1920*progress):0,pad=1920:1080:0:0:black,scale=1920:1080"
+        elif request.effect == "slide_up":
+            filter_complex = "crop=1920:1080:0:(1080-1080*progress),pad=1920:1080:0:0:black,scale=1920:1080"
+        elif request.effect == "slide_down":
+            filter_complex = "crop=1920:1080:0:(0-1080*progress),pad=1920:1080:0:0:black,scale=1920:1080"
+        elif request.effect == "rotate_right_90":
+            filter_complex = "rotate=-PI/2:ow=1920:oh=1080:c=black@0"
+        elif request.effect == "rotate_left_45":
+            filter_complex = "rotate=PI/4:ow=1920:oh=1080:c=black@0"
+        elif request.effect == "rotate_right_45":
+            filter_complex = "rotate=-PI/4:ow=1920:oh=1080:c=black@0"
+        elif request.effect == "pan_up":
+            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x=0:y='(ih-1080)*(1-t/5)'"
+        elif request.effect == "pan_down":
+            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x=0:y='(ih-1080)*(t/5)'"
         
         if filter_complex:
             cmd.extend(["-filter_complex", filter_complex])
@@ -793,6 +827,278 @@ async def apply_simple_effect(request: SimpleEffectRequest):
                     {"option": "-c:v", "argument": "libx264"},
                     {"option": "-pix_fmt", "argument": "yuv420p"}
                 ]
+            },
+            "pixelized_to_clear": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='lt(t,0.5)',scale=iw:ih:enable='gte(t,0.5)',scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "clear_to_blurred": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"boxblur=0:enable='lt(t,0.5)',boxblur=10:enable='gte(t,0.5)',scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "clear_to_pixelized": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=iw:ih:enable='lt(t,0.5)',scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='gte(t,0.5)',scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_out": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=out:st=0:d=2:alpha=1,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "wipe_left": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:({request.width}-{request.width}*progress):0,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "wipe_right": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:(0-{request.width}*progress):0,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "wipe_up": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:0:({request.height}-{request.height}*progress),scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "wipe_down": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:0:(0-{request.height}*progress),scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "slide_left": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:({request.width}-{request.width}*progress):0,pad={request.width}:{request.height}:0:0:black,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "slide_right": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:(0-{request.width}*progress):0,pad={request.width}:{request.height}:0:0:black,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "slide_up": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:0:({request.height}-{request.height}*progress),pad={request.width}:{request.height}:0:0:black,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "slide_down": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop={request.width}:{request.height}:0:(0-{request.height}*progress),pad={request.width}:{request.height}:0:0:black,scale={request.width}:{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "rotate_right_90": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"rotate=-PI/2:ow={request.width}:oh={request.height}:c=black@0"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "rotate_left_45": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"rotate=PI/4:ow={request.width}:oh={request.height}:c=black@0"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "rotate_right_45": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"rotate=-PI/4:ow={request.width}:oh={request.height}:c=black@0"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "pan_up": {
+                "requires_loop": True,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=w={request.width}:h={request.height}:force_original_aspect_ratio=increase,crop={request.width}:{request.height}:x=0:y='(ih-{request.height})*(1-t/5)'"],
+                "output_options": [
+                    {"option": "-t", "argument": str(request.duration)},
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "pan_down": {
+                "requires_loop": True,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=w={request.width}:h={request.height}:force_original_aspect_ratio=increase,crop={request.width}:{request.height}:x=0:y='(ih-{request.height})*(t/5)'"],
+                "output_options": [
+                    {"option": "-t", "argument": str(request.duration)},
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "stabilize": {
+                "requires_loop": False,
+                "input_options": [],
+                "filters": [f"vidstabdetect=shakiness=10:accuracy=15,vidstabtransform=smoothing=30"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "text_overlay": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"drawtext=text='Sample Text':fontsize=50:fontcolor=white:x=100:y=100,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "squeeze_vertical": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop=iw:ih*progress:0:(ih-ih*progress)/2,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "squeeze_horizontal": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop=iw*progress:ih:(iw-iw*progress)/2:0,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "rect_crop": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"crop=iw*0.8:ih*0.8:(iw-iw*0.8)/2:(ih-ih*0.8)/2,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "circle_crop": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"geq=r='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),r,g)',geq=g='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),g,b)',geq=b='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),b,r)',scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_black": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=in:st=0:d=1:color=black,fade=t=out:st={max(1, request.duration-1)}:d=1:color=black,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_white": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=in:st=0:d=1:color=white,fade=t=out:st={max(1, request.duration-1)}:d=1:color=white,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "dissolve": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='0.5+0.5*sin(2*PI*t/2)',scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "pixelize": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=iw/20:ih/20:flags=neighbor,scale=iw*20:ih*20:flags=neighbor,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "zoom_in_transition": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"zoompan=z='1+2*t/{request.duration}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={request.width}x{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_fast": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=in:st=0:d=0.5,fade=t=out:st={max(0.5, request.duration-0.5)}:d=0.5,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_slow": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=in:st=0:d=3,fade=t=out:st={max(3, request.duration-3)}:d=3,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
             }
         }
         
@@ -1090,6 +1396,519 @@ async def get_video_effects():
                     "filters": [
                         {
                             "filter": "drawtext=text='Sample Text':fontsize=50:fontcolor=white:x=100:y=100"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "pixelized_to_clear": {
+                "description": "Transition from pixelized to clear",
+                "example": {
+                    "id": "pixelized_to_clear",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='lt(t,0.5)',scale=iw:ih:enable='gte(t,0.5)'"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "clear_to_blurred": {
+                "description": "Transition from clear to blurred",
+                "example": {
+                    "id": "clear_to_blurred",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "boxblur=0:enable='lt(t,0.5)',boxblur=10:enable='gte(t,0.5)'"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "clear_to_pixelized": {
+                "description": "Transition from clear to pixelized",
+                "example": {
+                    "id": "clear_to_pixelized",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=iw:ih:enable='lt(t,0.5)',scale=iw/10:ih/10:flags=neighbor,scale=iw*10:ih*10:flags=neighbor:enable='gte(t,0.5)'"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "wipe_left": {
+                "description": "Wipe transition from left",
+                "example": {
+                    "id": "wipe_left",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:(1920-1920*progress):0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "wipe_right": {
+                "description": "Wipe transition from right",
+                "example": {
+                    "id": "wipe_right",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:(0-1920*progress):0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "wipe_up": {
+                "description": "Wipe transition from top",
+                "example": {
+                    "id": "wipe_up",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:0:(1080-1080*progress)"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "wipe_down": {
+                "description": "Wipe transition from bottom",
+                "example": {
+                    "id": "wipe_down",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:0:(0-1080*progress)"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "slide_left": {
+                "description": "Slide transition from left",
+                "example": {
+                    "id": "slide_left",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:(1920-1920*progress):0,pad=1920:1080:0:0:black"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "slide_right": {
+                "description": "Slide transition from right",
+                "example": {
+                    "id": "slide_right",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:(0-1920*progress):0,pad=1920:1080:0:0:black"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "slide_up": {
+                "description": "Slide transition from top",
+                "example": {
+                    "id": "slide_up",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:0:(1080-1080*progress),pad=1920:1080:0:0:black"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "slide_down": {
+                "description": "Slide transition from bottom",
+                "example": {
+                    "id": "slide_down",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=1920:1080:0:(0-1080*progress),pad=1920:1080:0:0:black"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "rotate_right_90": {
+                "description": "Rotate 90 degrees to the right",
+                "example": {
+                    "id": "rotate_right_90",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "rotate=-PI/2:ow=1920:oh=1080:c=black@0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "rotate_left_45": {
+                "description": "Rotate 45 degrees to the left",
+                "example": {
+                    "id": "rotate_left_45",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "rotate=PI/4:ow=1920:oh=1080:c=black@0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "rotate_right_45": {
+                "description": "Rotate 45 degrees to the right",
+                "example": {
+                    "id": "rotate_right_45",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "rotate=-PI/4:ow=1920:oh=1080:c=black@0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "pan_up": {
+                "description": "Pan up across the image",
+                "example": {
+                    "id": "pan_up",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/image.jpg",
+                            "options": [{"option": "-loop", "argument": "1"}]
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x=0:y='(ih-1080)*(1-t/5)'"
+                        }
+                    ],
+                    "outputs": [{"options": [{"option": "-t", "argument": "5"}]}],
+                    "metadata": {"duration": True}
+                }
+            },
+            "pan_down": {
+                "description": "Pan down across the image",
+                "example": {
+                    "id": "pan_down",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/image.jpg",
+                            "options": [{"option": "-loop", "argument": "1"}]
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x=0:y='(ih-1080)*(t/5)'"
+                        }
+                    ],
+                    "outputs": [{"options": [{"option": "-t", "argument": "5"}]}],
+                    "metadata": {"duration": True}
+                }
+            },
+            "squeeze_vertical": {
+                "description": "Squeeze vertically",
+                "example": {
+                    "id": "squeeze_vertical",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=iw:ih*progress:0:(ih-ih*progress)/2"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "squeeze_horizontal": {
+                "description": "Squeeze horizontally",
+                "example": {
+                    "id": "squeeze_horizontal",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=iw*progress:ih:(iw-iw*progress)/2:0"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "rect_crop": {
+                "description": "Rectangular crop",
+                "example": {
+                    "id": "rect_crop",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "crop=iw*0.8:ih*0.8:(iw-iw*0.8)/2:(ih-ih*0.8)/2"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "circle_crop": {
+                "description": "Circular crop effect",
+                "example": {
+                    "id": "circle_crop",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "geq=r='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),r,g)',geq=g='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),g,b)',geq=b='if(hypot(X-(W/2),Y-(H/2))<(min(W,H)/3),b,r)'"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "fade_black": {
+                "description": "Fade in/out to black",
+                "example": {
+                    "id": "fade_black",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "fade=t=in:st=0:d=1:color=black,fade=t=out:st=4:d=1:color=black"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "fade_white": {
+                "description": "Fade in/out to white",
+                "example": {
+                    "id": "fade_white",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "fade=t=in:st=0:d=1:color=white,fade=t=out:st=4:d=1:color=white"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "dissolve": {
+                "description": "Dissolve transition effect",
+                "example": {
+                    "id": "dissolve",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='0.5+0.5*sin(2*PI*t/2)'"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "pixelize": {
+                "description": "Pixelize the video",
+                "example": {
+                    "id": "pixelize",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "scale=iw/20:ih/20:flags=neighbor,scale=iw*20:ih*20:flags=neighbor"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "zoom_in_transition": {
+                "description": "Zoom in transition",
+                "example": {
+                    "id": "zoom_in_transition",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "zoompan=z='1+2*t/5':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "fade_fast": {
+                "description": "Fast fade in/out",
+                "example": {
+                    "id": "fade_fast",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "fade=t=in:st=0:d=0.5,fade=t=out:st=4.5:d=0.5"
+                        }
+                    ],
+                    "outputs": [],
+                    "metadata": {"duration": True}
+                }
+            },
+            "fade_slow": {
+                "description": "Slow fade in/out",
+                "example": {
+                    "id": "fade_slow",
+                    "inputs": [
+                        {
+                            "file_url": "https://example.com/video.mp4",
+                            "options": []
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "filter": "fade=t=in:st=0:d=3,fade=t=out:st=2:d=3"
                         }
                     ],
                     "outputs": [],
