@@ -21,6 +21,29 @@ class ConvertRequest(BaseModel):
     effect_enlarge: float = 1.2
     effect_background: str = "default"
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Validate image_color
+        if self.image_color:
+            valid_colors = ["azure", "black", "blue", "brown", "cyan", "fuchsia", "gold", "gray", "green", "maroon", "navy", "olive", "orange", "pink", "purple", "red", "silver", "skyblue", "white", "yellow"]
+            if self.image_color.lower() not in valid_colors:
+                raise ValueError(f"Invalid image_color. Supported: {', '.join(valid_colors)}")
+        
+        # Validate duration
+        if self.duration != "default":
+            try:
+                dur = float(self.duration)
+                if dur <= 0 or dur > 300:  # Max 5 minutes
+                    raise ValueError("Duration must be between 0 and 300 seconds")
+            except ValueError:
+                raise ValueError("Duration must be 'default' or a valid number")
+        
+        # Validate effect
+        if self.effect:
+            valid_effects = ["zoom_in_center", "zoom_out_center", "pan_left", "pan_right", "rotate_left_90", "fade_in", "blur_to_clear"]
+            if self.effect not in valid_effects:
+                raise ValueError(f"Invalid effect. Supported: {', '.join(valid_effects)}")
+
 @app.post("/convert")
 async def convert_audio_to_video(request: ConvertRequest):
     temp_dir = tempfile.mkdtemp()
@@ -30,7 +53,22 @@ async def convert_audio_to_video(request: ConvertRequest):
         if audio_response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to download audio file")
         
-        audio_path = os.path.join(temp_dir, "audio.mp3")  # Assume mp3 for now
+        # Determine file extension from URL or content-type
+        content_type = audio_response.headers.get('content-type', '')
+        if 'mp3' in request.audio_url.lower() or 'audio/mpeg' in content_type:
+            ext = 'mp3'
+        elif 'wav' in request.audio_url.lower() or 'audio/wav' in content_type:
+            ext = 'wav'
+        elif 'aac' in request.audio_url.lower() or 'audio/aac' in content_type:
+            ext = 'aac'
+        elif 'm4a' in request.audio_url.lower() or 'audio/mp4' in content_type:
+            ext = 'm4a'
+        elif 'flac' in request.audio_url.lower() or 'audio/flac' in content_type:
+            ext = 'flac'
+        else:
+            ext = 'mp3'  # Default
+        
+        audio_path = os.path.join(temp_dir, f"audio.{ext}")
         with open(audio_path, "wb") as f:
             f.write(audio_response.content)
         
@@ -92,11 +130,27 @@ async def convert_audio_to_video(request: ConvertRequest):
         filter_complex = None
         if request.effect:
             if request.effect == "zoom_in_center":
-                # Simple zoom in
-                filter_complex = f"zoompan=z='min(max(zoom,pzoom)+0.0015,1.5)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
+                # Zoom in to center
+                filter_complex = f"zoompan=z='min(max(zoom,pzoom)+0.0015,{request.effect_enlarge})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
+            elif request.effect == "zoom_out_center":
+                # Zoom out from center
+                filter_complex = f"zoompan=z='max(min(zoom,pzoom)-0.0015,1/{request.effect_enlarge})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
             elif request.effect == "pan_left":
-                filter_complex = "crop=1920:1080:0:0"  # Placeholder, pan would need more complex
-            # Add more effects as needed
+                # Pan from right to left
+                filter_complex = f"crop=1920:1080:(1920-1920*progress):0,scale=1920:1080"
+            elif request.effect == "pan_right":
+                # Pan from left to right
+                filter_complex = f"crop=1920:1080:(0-1920*progress):0,scale=1920:1080"
+            elif request.effect == "rotate_left_90":
+                # Rotate left 90 degrees
+                filter_complex = "rotate=PI/2:ow=1920:oh=1080:c=black@0"
+            elif request.effect == "fade_in":
+                # Fade in from black
+                filter_complex = "fade=t=in:st=0:d=2:alpha=1"
+            elif request.effect == "blur_to_clear":
+                # Start blurred, become clear
+                filter_complex = "boxblur=10:enable='lt(t,0.5)',boxblur=0:enable='gte(t,0.5)'"
+            # Add more as needed
         
         if filter_complex:
             cmd.extend(["-filter_complex", filter_complex])
@@ -122,6 +176,20 @@ async def convert_audio_to_video(request: ConvertRequest):
         # Note: temp dir not cleaned for response sending
         pass
 
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "audio-to-video-converter"}
+
 @app.get("/")
 async def root():
-    return {"message": "Audio to Video Converter API", "endpoint": "/convert (POST with JSON: {'audio_url': '...', 'image_url': '...'})"}
+    return {
+        "message": "Audio to Video Converter API",
+        "version": "2.0",
+        "endpoints": {
+            "convert": "POST /convert - Convert audio to video",
+            "health": "GET /health - Health check"
+        },
+        "supported_formats": ["mp3", "wav", "aac", "m4a", "flac"],
+        "supported_colors": ["azure", "black", "blue", "brown", "cyan", "fuchsia", "gold", "gray", "green", "maroon", "navy", "olive", "orange", "pink", "purple", "red", "silver", "skyblue", "white", "yellow"],
+        "supported_effects": ["zoom_in_center", "zoom_out_center", "pan_left", "pan_right", "rotate_left_90", "fade_in", "blur_to_clear"]
+    }
