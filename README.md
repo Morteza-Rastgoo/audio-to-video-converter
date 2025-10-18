@@ -1,6 +1,6 @@
 # Video Audio Tools API
 
-A comprehensive API service that provides all audio processing tools from onlineconverter.com, including audio-to-video conversion, speed changes, compression, cutting, extraction, volume control, merging, mixing, noise removal, silence removal, repair, and video audio removal.
+A comprehensive API service that provides video and audio processing tools, including audio-to-video conversion, speed changes, compression, cutting, extraction, volume control, merging, mixing, noise removal, silence removal, repair, and video audio removal.
 
 ## Features
 
