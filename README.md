@@ -1,4 +1,4 @@
-# Universal Audio Tools API
+# Video Audio Tools API
 
 A comprehensive API service that provides all audio processing tools from onlineconverter.com, including audio-to-video conversion, speed changes, compression, cutting, extraction, volume control, merging, mixing, noise removal, silence removal, repair, and video audio removal.
 
@@ -209,7 +209,7 @@ Azure, Black, Blue, Brown, Cyan, Fuchsia, Gold, Gray, Green, Maroon, Navy, Olive
 
 ### Audio to Video
 ```bash
-curl -X POST "http://universal-audio-tools:8000/audio-to-video" \
+curl -X POST "http://video-audio-tools:8000/audio-to-video" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "image_color": "Black"}' \
      -o output.mp4
@@ -217,7 +217,7 @@ curl -X POST "http://universal-audio-tools:8000/audio-to-video" \
 
 ### Change Speed
 ```bash
-curl -X POST "http://universal-audio-tools:8000/change-speed" \
+curl -X POST "http://video-audio-tools:8000/change-speed" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "speed": 1.25}' \
      -o faster.mp3
@@ -225,7 +225,7 @@ curl -X POST "http://universal-audio-tools:8000/change-speed" \
 
 ### Compress MP3
 ```bash
-curl -X POST "http://universal-audio-tools:8000/compress-mp3" \
+curl -X POST "http://video-audio-tools:8000/compress-mp3" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "bitrate": "128k"}' \
      -o compressed.mp3
@@ -233,7 +233,7 @@ curl -X POST "http://universal-audio-tools:8000/compress-mp3" \
 
 ### Cut MP3
 ```bash
-curl -X POST "http://universal-audio-tools:8000/cut-mp3" \
+curl -X POST "http://video-audio-tools:8000/cut-mp3" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "start_time": "30", "duration": "60"}' \
      -o cut_audio.mp3
@@ -241,7 +241,7 @@ curl -X POST "http://universal-audio-tools:8000/cut-mp3" \
 
 ### Extract Audio from Video
 ```bash
-curl -X POST "http://universal-audio-tools:8000/extract-audio" \
+curl -X POST "http://video-audio-tools:8000/extract-audio" \
      -H "Content-Type: application/json" \
      -d '{"video_url": "https://example.com/video.mp4"}' \
      -o extracted.mp3
@@ -249,7 +249,7 @@ curl -X POST "http://universal-audio-tools:8000/extract-audio" \
 
 ### Change Volume
 ```bash
-curl -X POST "http://universal-audio-tools:8000/change-volume" \
+curl -X POST "http://video-audio-tools:8000/change-volume" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "volume": 1.5}' \
      -o louder.mp3
@@ -257,7 +257,7 @@ curl -X POST "http://universal-audio-tools:8000/change-volume" \
 
 ### Merge Audio
 ```bash
-curl -X POST "http://universal-audio-tools:8000/merge-audio" \
+curl -X POST "http://video-audio-tools:8000/merge-audio" \
      -H "Content-Type: application/json" \
      -d '{"audio_urls": ["https://example.com/audio1.mp3", "https://example.com/audio2.mp3"], "output_format": "mp3"}' \
      -o merged.mp3
@@ -265,7 +265,7 @@ curl -X POST "http://universal-audio-tools:8000/merge-audio" \
 
 ### Mix Audio
 ```bash
-curl -X POST "http://universal-audio-tools:8000/mix-audio" \
+curl -X POST "http://video-audio-tools:8000/mix-audio" \
      -H "Content-Type: application/json" \
      -d '{"audio_urls": ["https://example.com/audio1.mp3", "https://example.com/audio2.mp3"], "volumes": [1.0, 0.5], "output_format": "mp3"}' \
      -o mixed.mp3
@@ -273,7 +273,7 @@ curl -X POST "http://universal-audio-tools:8000/mix-audio" \
 
 ### Remove Audio from Video
 ```bash
-curl -X POST "http://universal-audio-tools:8000/remove-audio-from-video" \
+curl -X POST "http://video-audio-tools:8000/remove-audio-from-video" \
      -H "Content-Type: application/json" \
      -d '{"video_url": "https://example.com/video.mp4"}' \
      -o silent_video.mp4
@@ -281,7 +281,7 @@ curl -X POST "http://universal-audio-tools:8000/remove-audio-from-video" \
 
 ### Remove Noise
 ```bash
-curl -X POST "http://universal-audio-tools:8000/remove-noise" \
+curl -X POST "http://video-audio-tools:8000/remove-noise" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "noise_reduction_level": 0.5}' \
      -o denoised.mp3
@@ -289,7 +289,7 @@ curl -X POST "http://universal-audio-tools:8000/remove-noise" \
 
 ### Remove Silence
 ```bash
-curl -X POST "http://universal-audio-tools:8000/remove-silence" \
+curl -X POST "http://video-audio-tools:8000/remove-silence" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "silence_threshold": -50.0, "silence_duration": 0.5}' \
      -o no_silence.mp3
@@ -297,7 +297,7 @@ curl -X POST "http://universal-audio-tools:8000/remove-silence" \
 
 ### Repair M4A
 ```bash
-curl -X POST "http://universal-audio-tools:8000/repair-m4a" \
+curl -X POST "http://video-audio-tools:8000/repair-m4a" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.m4a"}' \
      -o repaired.m4a
@@ -305,21 +305,21 @@ curl -X POST "http://universal-audio-tools:8000/repair-m4a" \
 
 ### Probe Media
 ```bash
-curl -X POST "http://universal-audio-tools:8000/probe-media" \
+curl -X POST "http://video-audio-tools:8000/probe-media" \
      -H "Content-Type: application/json" \
      -d '{"media_url": "https://example.com/audio.mp3"}'
 ```
 
 ### Get Duration
 ```bash
-curl -X POST "http://universal-audio-tools:8000/get-duration" \
+curl -X POST "http://video-audio-tools:8000/get-duration" \
      -H "Content-Type: application/json" \
      -d '{"media_url": "https://example.com/audio.mp3"}'
 ```
 
 ### Get Thumbnail
 ```bash
-curl -X POST "http://universal-audio-tools:8000/get-thumbnail" \
+curl -X POST "http://video-audio-tools:8000/get-thumbnail" \
      -H "Content-Type: application/json" \
      -d '{"video_url": "https://example.com/video.mp4", "timestamp": "00:00:05", "width": 320, "height": 240}' \
      -o thumbnail.jpg
@@ -327,7 +327,7 @@ curl -X POST "http://universal-audio-tools:8000/get-thumbnail" \
 
 ### Get Waveform
 ```bash
-curl -X POST "http://universal-audio-tools:8000/get-waveform" \
+curl -X POST "http://video-audio-tools:8000/get-waveform" \
      -H "Content-Type: application/json" \
      -d '{"audio_url": "https://example.com/audio.mp3", "width": 800, "height": 200, "color": "blue"}' \
      -o waveform.png
@@ -335,26 +335,26 @@ curl -X POST "http://universal-audio-tools:8000/get-waveform" \
 
 ### Get Audio Info
 ```bash
-curl -X POST "http://universal-audio-tools:8000/get-audio-info" \
+curl -X POST "http://video-audio-tools:8000/get-audio-info" \
      -H "Content-Type: application/json" \
      -d '{"media_url": "https://example.com/audio.mp3"}'
 ```
 
 ### Get Video Info
 ```bash
-curl -X POST "http://universal-audio-tools:8000/get-video-info" \
+curl -X POST "http://video-audio-tools:8000/get-video-info" \
      -H "Content-Type: application/json" \
      -d '{"media_url": "https://example.com/video.mp4"}'
 ```
 
 ### Health Check
 ```bash
-curl "http://universal-audio-tools:8000/health"
+curl "http://video-audio-tools:8000/health"
 ```
 
 ### API Info
 ```bash
-curl "http://universal-audio-tools:8000/"
+curl "http://video-audio-tools:8000/"
 ```
 
 ## Health Check
@@ -365,7 +365,7 @@ curl "http://universal-audio-tools:8000/"
 ```json
 {
   "status": "healthy",
-  "service": "universal-audio-tools"
+  "service": "video-audio-tools"
 }
 ```
 
@@ -478,7 +478,7 @@ curl "http://universal-audio-tools:8000/"
 docker-compose up --build -d
 ```
 
-2. The API will be available at `http://universal-audio-tools:8000` within the runtipi_tipi_main_network.
+2. The API will be available at `http://video-audio-tools:8000` within the runtipi_tipi_main_network.
 
 ## Requirements
 

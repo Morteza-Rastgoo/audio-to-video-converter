@@ -544,7 +544,7 @@ async def get_video_info(request: ProbeRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "universal-audio-tools"}
+    return {"status": "healthy", "service": "video-audio-tools"}
 
 @app.get("/")
 async def root():
