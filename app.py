@@ -103,6 +103,15 @@ class VideoEffectRequest(BaseModel):
     outputs: List[VideoEffectOutput] = []
     metadata: VideoEffectMetadata = VideoEffectMetadata()
 
+# Simplified effect request model
+class SimpleEffectRequest(BaseModel):
+    url: str
+    effect: str
+    duration: float = 39.5  # Default pan duration
+    width: int = 1080
+    height: int = 1920
+    output_format: str = "mp4"
+
 # Utility functions
 def download_file(url: str, temp_dir: str, filename: str = None) -> str:
     response = requests.get(url)
@@ -158,9 +167,9 @@ async def audio_to_video(request: AudioToVideoRequest):
         elif request.effect == "zoom_out_center":
             filter_complex = f"zoompan=z='max(min(zoom,pzoom)-0.0015,1/{request.effect_enlarge})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
         elif request.effect == "pan_left":
-            filter_complex = "crop=1920:1080:(1920-1920*progress):0,scale=1920:1080"
+            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(t/5)':y=0"
         elif request.effect == "pan_right":
-            filter_complex = "crop=1920:1080:(0-1920*progress):0,scale=1920:1080"
+            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(1-t/5)':y=0"
         elif request.effect == "rotate_left_90":
             filter_complex = "rotate=PI/2:ow=1920:oh=1080:c=black@0"
         elif request.effect == "fade_in":
@@ -640,6 +649,211 @@ async def apply_video_effect(request: VideoEffectRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/apply-effect")
+async def apply_simple_effect(request: SimpleEffectRequest):
+    """Apply predefined video effects with simple parameters"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Download the input file
+        input_path = download_file(request.url, temp_dir, "input")
+        
+        output_path = os.path.join(temp_dir, f"output.{request.output_format}")
+        
+        # Check if input is an image (needs looping for effects)
+        is_image = not any(ext in request.url.lower() for ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.mp3', '.wav', '.aac'])
+        
+        # Get input dimensions for proper aspect ratio handling
+        input_width, input_height = request.width, request.height
+        if is_image:
+            try:
+                # Use ffprobe to get actual image dimensions
+                probe_cmd = [
+                    "ffprobe", "-v", "error", "-select_streams", "v:0", 
+                    "-show_entries", "stream=width,height", "-of", "csv=p=0", input_path
+                ]
+                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+                if probe_result.returncode == 0:
+                    dims = probe_result.stdout.strip().split(',')
+                    if len(dims) == 2:
+                        input_width = int(dims[0])
+                        input_height = int(dims[1])
+            except:
+                # Fallback to request dimensions if probing fails
+                pass
+        
+        # Define effect configurations
+        effect_configs = {
+            "pan_crop_vertical": {
+                "requires_loop": True,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=w=1080:h=1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*(1-t/5)':y=0,fps=30"],
+                "output_options": [
+                    {"option": "-t", "argument": str(request.duration)},
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "zoom_in_center": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2,zoompan=z='min(max(zoom,pzoom)+0.0015,2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={request.width}x{request.height}"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "fade_in_out": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"fade=t=in:st=0:d=1,fade=t=out:st={max(1, request.duration-1)}:d=1,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "blur": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"boxblur=10,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "sepia": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "grayscale": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"format=gray,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "vignette": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"vignette=PI/4,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "mirror_flip": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"hflip,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "speed_up": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"{'setpts=PTS/2,' if not is_image else ''}scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "slow_down": {
+                "requires_loop": False,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"{'setpts=PTS*2,' if not is_image else ''}scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "output_options": [
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            }
+        }
+        
+        if request.effect not in effect_configs:
+            raise HTTPException(status_code=400, detail=f"Effect '{request.effect}' not supported. Available effects: {', '.join(effect_configs.keys())}")
+        
+        # Special handling for pan_crop_vertical - use the working approach
+        if request.effect == "pan_crop_vertical":
+            # Use the exact same logic as the working /apply-video-effect curl command
+            temp_dir = tempfile.mkdtemp()
+            try:
+                # Download input file
+                input_path = download_file(request.url, temp_dir, "input")
+                
+                output_path = os.path.join(temp_dir, f"output.{request.output_format}")
+                
+                # Build FFmpeg command exactly like the working curl
+                cmd = ["ffmpeg"]
+                
+                # Add input options
+                cmd.extend(["-loop", "1"])
+                cmd.extend(["-i", input_path])
+                
+                # Add filter complex - exact same as working
+                filter_str = "scale=w=1080:h=1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*(1-t/5)':y=0,fps=30"
+                cmd.extend(["-filter_complex", filter_str])
+                
+                # Add output options
+                cmd.extend(["-t", str(request.duration)])
+                cmd.extend(["-c:v", "libx264"])
+                cmd.extend(["-pix_fmt", "yuv420p"])
+                cmd.extend(["-y", output_path])
+                
+                # Execute FFmpeg command with capture_output=True like /apply-video-effect
+                subprocess.run(cmd, check=True, capture_output=True)
+                
+                # Return the processed video file
+                return FileResponse(output_path, media_type=f'video/{request.output_format}', filename=f"effect_{request.effect}.{request.output_format}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        config = effect_configs[request.effect]
+        
+        # Build output options based on input type
+        output_options = []
+        if is_image:
+            output_options.append({"option": "-t", "argument": str(request.duration)})
+        output_options.extend([
+            {"option": "-c:v", "argument": "libx264"},
+            {"option": "-pix_fmt", "argument": "yuv420p"}
+        ])
+        
+        # Build FFmpeg command
+        cmd = ["ffmpeg"]
+        
+        # Add input options and file
+        for option in config["input_options"]:
+            cmd.extend([option["option"], option["argument"]])
+        cmd.extend(["-i", input_path])
+        
+        # Add filters
+        if config["filters"]:
+            filter_complex = ",".join(config["filters"])
+            cmd.extend(["-filter_complex", filter_complex])
+        
+        # Add output options
+        for option in output_options:
+            cmd.extend([option["option"], option["argument"]])
+        
+        # Add output file
+        cmd.extend(["-y", output_path])
+        
+        # Execute FFmpeg command
+        subprocess.run(cmd, check=True)
+        
+        # Return the processed video file
+        return FileResponse(output_path, media_type=f'video/{request.output_format}', filename=f"effect_{request.effect}.{request.output_format}")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/video-effects")
 async def get_video_effects():
     """Get list of predefined video effects with examples"""
@@ -874,7 +1088,7 @@ async def health():
 async def root():
     return {
         "message": "Video Audio Tools API",
-        "version": "3.2",
+        "version": "3.3",
         "tools": [
             "audio-to-video", "change-speed", "compress-mp3", "cut-mp3",
             "extract-audio", "change-volume", "merge-audio", "mix-audio",
@@ -885,7 +1099,7 @@ async def root():
             "get-audio-info", "get-video-info"
         ],
         "video_effects": [
-            "apply-video-effect", "video-effects"
+            "apply-effect", "apply-video-effect", "video-effects"
         ],
         "health": "/health"
     }
