@@ -167,9 +167,9 @@ async def audio_to_video(request: AudioToVideoRequest):
         elif request.effect == "zoom_out_center":
             filter_complex = f"zoompan=z='max(min(zoom,pzoom)-0.0015,1/{request.effect_enlarge})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080"
         elif request.effect == "pan_left":
-            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(t/5)':y=0"
-        elif request.effect == "pan_right":
             filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(1-t/5)':y=0"
+        elif request.effect == "pan_right":
+            filter_complex = "scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(t/5)':y=0"
         elif request.effect == "rotate_left_90":
             filter_complex = "rotate=PI/2:ow=1920:oh=1080:c=black@0"
         elif request.effect == "fade_in":
@@ -687,6 +687,26 @@ async def apply_simple_effect(request: SimpleEffectRequest):
                 "requires_loop": True,
                 "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
                 "filters": [f"scale=w=1080:h=1920:force_original_aspect_ratio=increase,crop=1080:1920:x='(iw-1080)*(1-t/5)':y=0,fps=30"],
+                "output_options": [
+                    {"option": "-t", "argument": str(request.duration)},
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "pan_left": {
+                "requires_loop": True,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(1-t/5)':y=0,fps=30"],
+                "output_options": [
+                    {"option": "-t", "argument": str(request.duration)},
+                    {"option": "-c:v", "argument": "libx264"},
+                    {"option": "-pix_fmt", "argument": "yuv420p"}
+                ]
+            },
+            "pan_right": {
+                "requires_loop": True,
+                "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
+                "filters": [f"scale=w=1920:h=1080:force_original_aspect_ratio=increase,crop=1920:1080:x='(iw-1920)*(t/5)':y=0,fps=30"],
                 "output_options": [
                     {"option": "-t", "argument": str(request.duration)},
                     {"option": "-c:v", "argument": "libx264"},
