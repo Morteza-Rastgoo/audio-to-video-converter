@@ -8,7 +8,7 @@ import requests
 from pydantic import BaseModel
 from typing import List, Optional
 
-app = FastAPI(title="Universal Audio Tools API", description="Comprehensive audio processing tools")
+app = FastAPI(title="Video Audio Tools API", description="Comprehensive audio and video processing tools")
 
 # Pydantic models
 class AudioToVideoRequest(BaseModel):
@@ -549,7 +549,7 @@ async def health():
 @app.get("/")
 async def root():
     return {
-        "message": "Universal Audio Tools API",
+        "message": "Video Audio Tools API",
         "version": "3.2",
         "tools": [
             "audio-to-video", "change-speed", "compress-mp3", "cut-mp3",
