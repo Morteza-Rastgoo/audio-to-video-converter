@@ -111,6 +111,28 @@ class SimpleEffectRequest(BaseModel):
     width: int = 1080
     height: int = 1920
     output_format: str = "mp4"
+    # New customizable parameters
+    fade_duration: float = 1.0  # Fade in/out duration in seconds
+    fade_start_time: float = 0.0  # When fade starts
+    fade_end_time: Optional[float] = None  # When fade ends (calculated if not provided)
+    blur_intensity: float = 10.0  # Blur strength (1-100)
+    pixelate_factor: int = 20  # Pixelation factor (2-50)
+    text_content: str = "Sample Text"  # Text for overlay
+    text_fontsize: int = 50  # Font size for text overlay
+    text_color: str = "white"  # Text color
+    text_x: str = "100"  # X position (can be expression)
+    text_y: str = "100"  # Y position (can be expression)
+    zoom_level: float = 2.0  # Maximum zoom level
+    zoom_speed: float = 0.0015  # Zoom speed per frame
+    rotation_angle: float = 90.0  # Rotation angle in degrees
+    crop_width_percent: float = 0.8  # Crop width as percentage (0.1-1.0)
+    crop_height_percent: float = 0.8  # Crop height as percentage (0.1-1.0)
+    pan_speed: float = 5.0  # Pan duration in seconds
+    transition_duration: float = 0.5  # Transition duration for effects like pixelize_to_clear
+    vignette_angle: float = 3.14159/4  # Vignette angle (PI/4 = 45°)
+    sepia_intensity: float = 1.0  # Sepia intensity (0-1)
+    speed_multiplier: float = 2.0  # Speed change multiplier
+    circle_radius_factor: float = 3.0  # Circle crop radius factor
 
 # Utility functions
 def download_file(url: str, temp_dir: str, filename: str = None) -> str:
@@ -768,7 +790,7 @@ async def apply_simple_effect(request: SimpleEffectRequest):
             "blur": {
                 "requires_loop": False,
                 "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
-                "filters": [f"boxblur=10,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "filters": [f"boxblur={request.blur_intensity},scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
                 "output_options": [
                     {"option": "-c:v", "argument": "libx264"},
                     {"option": "-pix_fmt", "argument": "yuv420p"}
@@ -995,7 +1017,7 @@ async def apply_simple_effect(request: SimpleEffectRequest):
             "text_overlay": {
                 "requires_loop": False,
                 "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
-                "filters": [f"drawtext=text='Sample Text':fontsize=50:fontcolor=white:x=100:y=100,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "filters": [f"drawtext=text='{request.text_content}':fontsize={request.text_fontsize}:fontcolor={request.text_color}:x={request.text_x}:y={request.text_y},scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
                 "output_options": [
                     {"option": "-c:v", "argument": "libx264"},
                     {"option": "-pix_fmt", "argument": "yuv420p"}
@@ -1040,7 +1062,7 @@ async def apply_simple_effect(request: SimpleEffectRequest):
             "fade_black": {
                 "requires_loop": False,
                 "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
-                "filters": [f"fade=t=in:st=0:d=1:color=black,fade=t=out:st={max(1, request.duration-1)}:d=1:color=black,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "filters": [f"fade=t=in:st={request.fade_start_time}:d={request.fade_duration}:color=black,fade=t=out:st={request.fade_end_time or max(request.fade_duration, request.duration - request.fade_duration)}:d={request.fade_duration}:color=black,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
                 "output_options": [
                     {"option": "-c:v", "argument": "libx264"},
                     {"option": "-pix_fmt", "argument": "yuv420p"}
@@ -1067,7 +1089,7 @@ async def apply_simple_effect(request: SimpleEffectRequest):
             "pixelize": {
                 "requires_loop": False,
                 "input_options": [{"option": "-loop", "argument": "1"}] if is_image else [],
-                "filters": [f"scale=iw/20:ih/20:flags=neighbor,scale=iw*20:ih*20:flags=neighbor,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
+                "filters": [f"scale=iw/{request.pixelate_factor}:ih/{request.pixelate_factor}:flags=neighbor,scale=iw*{request.pixelate_factor}:ih*{request.pixelate_factor}:flags=neighbor,scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2"],
                 "output_options": [
                     {"option": "-c:v", "argument": "libx264"},
                     {"option": "-pix_fmt", "argument": "yuv420p"}

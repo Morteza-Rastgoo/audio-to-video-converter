@@ -471,6 +471,135 @@ curl "http://video-audio-tools:8000/"
 
 **Response:** Detailed video file information including resolution, FPS, codec, aspect ratio, and metadata.
 
+## Video Effects
+
+### 19. Apply Video Effect (Simple)
+
+**Endpoint:** `POST /apply-effect`
+
+**Request:**
+```json
+{
+  "url": "https://example.com/video.mp4",
+  "effect": "blur",
+  "duration": 10.0,
+  "width": 1920,
+  "height": 1080,
+  "output_format": "mp4",
+  // Customizable parameters
+  "fade_duration": 2.0,
+  "fade_start_time": 0.0,
+  "blur_intensity": 15.0,
+  "pixelate_factor": 10,
+  "text_content": "Hello World",
+  "text_fontsize": 60,
+  "text_color": "yellow",
+  "text_x": "center",
+  "text_y": "center",
+  "zoom_level": 3.0,
+  "zoom_speed": 0.002,
+  "rotation_angle": 45.0,
+  "crop_width_percent": 0.7,
+  "crop_height_percent": 0.7,
+  "pan_speed": 8.0,
+  "transition_duration": 1.0,
+  "vignette_angle": 0.8,
+  "sepia_intensity": 0.8,
+  "speed_multiplier": 1.5,
+  "circle_radius_factor": 2.5
+}
+```
+
+**Response:** Processed video file with the applied effect.
+
+#### Customizable Parameters
+
+- **fade_duration**: Duration of fade effects in seconds (default: 1.0)
+- **fade_start_time**: When fade starts in seconds (default: 0.0)
+- **blur_intensity**: Blur strength (1-100, default: 10.0)
+- **pixelate_factor**: Pixelation level (2-50, default: 20)
+- **text_content**: Text for overlay (default: "Sample Text")
+- **text_fontsize**: Font size for text overlay (default: 50)
+- **text_color**: Text color (default: "white")
+- **text_x/text_y**: Text position (can use expressions like "center", "100", etc.)
+- **zoom_level**: Maximum zoom level (default: 2.0)
+- **zoom_speed**: Zoom speed per frame (default: 0.0015)
+- **rotation_angle**: Rotation angle in degrees (default: 90.0)
+- **crop_width_percent/crop_height_percent**: Crop size as percentage (0.1-1.0, default: 0.8)
+- **pan_speed**: Pan duration in seconds (default: 5.0)
+- **transition_duration**: Duration of transitions in seconds (default: 0.5)
+- **vignette_angle**: Vignette angle in radians (default: π/4)
+- **sepia_intensity**: Sepia effect intensity (0-1, default: 1.0)
+- **speed_multiplier**: Speed change multiplier (default: 2.0)
+- **circle_radius_factor**: Circle crop radius factor (default: 3.0)
+
+### 20. Apply Video Effect (Advanced)
+
+**Endpoint:** `POST /apply-video-effect`
+
+**Request:** Complex JSON structure for advanced FFmpeg filter chains.
+
+### 21. Get Video Effects List
+
+**Endpoint:** `GET /video-effects`
+
+**Response:** Complete list of available video effects with descriptions and examples.
+
+### Video Effects Examples
+
+#### Custom Blur Effect
+```bash
+curl -X POST "http://video-audio-tools:8000/apply-effect" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "url": "https://example.com/video.mp4",
+       "effect": "blur",
+       "blur_intensity": 25.0
+     }' \
+     -o blurred_video.mp4
+```
+
+#### Custom Text Overlay
+```bash
+curl -X POST "http://video-audio-tools:8000/apply-effect" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "url": "https://example.com/video.mp4",
+       "effect": "text_overlay",
+       "text_content": "My Custom Text",
+       "text_fontsize": 80,
+       "text_color": "red",
+       "text_x": "center",
+       "text_y": "bottom"
+     }' \
+     -o text_video.mp4
+```
+
+#### Custom Fade Effect
+```bash
+curl -X POST "http://video-audio-tools:8000/apply-effect" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "url": "https://example.com/video.mp4",
+       "effect": "fade_black",
+       "fade_duration": 3.0,
+       "fade_start_time": 1.0
+     }' \
+     -o faded_video.mp4
+```
+
+#### Custom Pixelation
+```bash
+curl -X POST "http://video-audio-tools:8000/apply-effect" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "url": "https://example.com/video.mp4",
+       "effect": "pixelize",
+       "pixelate_factor": 5
+     }' \
+     -o pixelated_video.mp4
+```
+
 ## Running
 
 1. Build and run with Docker Compose:
