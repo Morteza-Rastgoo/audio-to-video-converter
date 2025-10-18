@@ -171,3 +171,4 @@ cython_debug/
 # Output files
 output*.mp4
 test_audio.mp3
+test_*.mp4
