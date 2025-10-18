@@ -257,6 +257,102 @@ curl -X POST "http://universal-audio-tools:8000/extract-audio" \
 
 **Response:** Complete API documentation with all available tools.
 
+## Media Analysis & Probe Tools
+
+### 13. Probe Media
+
+**Endpoint:** `POST /probe-media`
+
+**Request:**
+```json
+{
+  "media_url": "https://example.com/audio.mp3"
+}
+```
+
+**Response:** Comprehensive media file information including format, duration, streams, codecs, and metadata.
+
+### 14. Get Duration
+
+**Endpoint:** `POST /get-duration`
+
+**Request:**
+```json
+{
+  "media_url": "https://example.com/audio.mp3"
+}
+```
+
+**Response:**
+```json
+{
+  "duration_seconds": 123.456,
+  "duration_formatted": "00:02:03.456",
+  "hours": 0,
+  "minutes": 2,
+  "seconds": 3,
+  "milliseconds": 456
+}
+```
+
+### 15. Get Thumbnail
+
+**Endpoint:** `POST /get-thumbnail`
+
+**Request:**
+```json
+{
+  "video_url": "https://example.com/video.mp4",
+  "timestamp": "00:00:05",
+  "width": 320,
+  "height": 240
+}
+```
+
+**Response:** JPEG thumbnail image from the specified timestamp.
+
+### 16. Get Waveform
+
+**Endpoint:** `POST /get-waveform`
+
+**Request:**
+```json
+{
+  "audio_url": "https://example.com/audio.mp3",
+  "width": 800,
+  "height": 200,
+  "color": "blue"
+}
+```
+
+**Response:** PNG waveform visualization image.
+
+### 17. Get Audio Info
+
+**Endpoint:** `POST /get-audio-info`
+
+**Request:**
+```json
+{
+  "media_url": "https://example.com/audio.mp3"
+}
+```
+
+**Response:** Detailed audio file information including codec, channels, sample rate, bitrate, and tags.
+
+### 18. Get Video Info
+
+**Endpoint:** `POST /get-video-info`
+
+**Request:**
+```json
+{
+  "media_url": "https://example.com/video.mp4"
+}
+```
+
+**Response:** Detailed video file information including resolution, FPS, codec, aspect ratio, and metadata.
+
 ## Running
 
 1. Build and run with Docker Compose:

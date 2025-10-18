@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 import subprocess
@@ -59,6 +60,22 @@ class SilenceRemovalRequest(BaseModel):
 
 class RepairRequest(BaseModel):
     audio_url: str
+
+# Probe models
+class ProbeRequest(BaseModel):
+    media_url: str
+
+class ThumbnailRequest(BaseModel):
+    video_url: str
+    timestamp: str = "00:00:01"  # HH:MM:SS format
+    width: int = 320
+    height: int = 240
+
+class WaveformRequest(BaseModel):
+    audio_url: str
+    width: int = 800
+    height: int = 200
+    color: str = "blue"
 
 # Utility functions
 def download_file(url: str, temp_dir: str, filename: str = None) -> str:
@@ -307,6 +324,224 @@ async def repair_m4a(request: RepairRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Probe endpoints
+@app.post("/probe-media")
+async def probe_media(request: ProbeRequest):
+    """Get comprehensive information about audio/video files using ffprobe"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        media_path = download_file(request.media_url, temp_dir, "media")
+        
+        # Get basic format information
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", 
+            "-show_streams", "-show_chapters", media_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to probe media file")
+        
+        probe_data = json.loads(result.stdout)
+        
+        # Extract useful information
+        info = {
+            "filename": probe_data.get("format", {}).get("filename", ""),
+            "format": probe_data.get("format", {}).get("format_name", ""),
+            "duration": float(probe_data.get("format", {}).get("duration", 0)),
+            "size": int(probe_data.get("format", {}).get("size", 0)),
+            "bitrate": int(probe_data.get("format", {}).get("bit_rate", 0)),
+            "streams": []
+        }
+        
+        # Process streams
+        for stream in probe_data.get("streams", []):
+            stream_info = {
+                "index": stream.get("index", 0),
+                "type": stream.get("codec_type", ""),
+                "codec": stream.get("codec_name", ""),
+                "language": stream.get("tags", {}).get("language", "und")
+            }
+            
+            if stream.get("codec_type") == "video":
+                stream_info.update({
+                    "width": stream.get("width", 0),
+                    "height": stream.get("height", 0),
+                    "fps": eval(stream.get("r_frame_rate", "0/1")),
+                    "pixel_format": stream.get("pix_fmt", ""),
+                    "duration": float(stream.get("duration", 0))
+                })
+            elif stream.get("codec_type") == "audio":
+                stream_info.update({
+                    "channels": stream.get("channels", 0),
+                    "sample_rate": int(stream.get("sample_rate", 0)),
+                    "bitrate": int(stream.get("bit_rate", 0)),
+                    "duration": float(stream.get("duration", 0))
+                })
+            
+            info["streams"].append(stream_info)
+        
+        return info
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-duration")
+async def get_duration(request: ProbeRequest):
+    """Get duration of audio/video file"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        media_path = download_file(request.media_url, temp_dir, "media")
+        
+        cmd = [
+            "ffprobe", "-v", "error", "-show_entries", "format=duration", 
+            "-of", "default=noprint_wrappers=1:nokey=1", media_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to get duration")
+        
+        duration = float(result.stdout.strip())
+        
+        # Convert to human readable format
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+        seconds = int(duration % 60)
+        milliseconds = int((duration % 1) * 1000)
+        
+        return {
+            "duration_seconds": duration,
+            "duration_formatted": f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}",
+            "hours": hours,
+            "minutes": minutes,
+            "seconds": seconds,
+            "milliseconds": milliseconds
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-thumbnail")
+async def get_thumbnail(request: ThumbnailRequest):
+    """Extract thumbnail/frame from video at specific timestamp"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        video_path = download_file(request.video_url, temp_dir, "video")
+        output_path = os.path.join(temp_dir, "thumbnail.jpg")
+        
+        cmd = [
+            "ffmpeg", "-i", video_path, "-ss", request.timestamp, 
+            "-vframes", "1", "-q:v", "2", "-vf", 
+            f"scale={request.width}:{request.height}:force_original_aspect_ratio=decrease,pad={request.width}:{request.height}:(ow-iw)/2:(oh-ih)/2",
+            "-y", output_path
+        ]
+        
+        subprocess.run(cmd, check=True, capture_output=True)
+        return FileResponse(output_path, media_type='image/jpeg', filename="thumbnail.jpg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-waveform")
+async def get_waveform(request: WaveformRequest):
+    """Generate waveform visualization for audio file"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        audio_path = download_file(request.audio_url, temp_dir, "audio")
+        output_path = os.path.join(temp_dir, "waveform.png")
+        
+        cmd = [
+            "ffmpeg", "-i", audio_path, "-filter_complex", 
+            f"showwavespic=s={request.width}x{request.height}:colors={request.color}",
+            "-frames:v", "1", "-y", output_path
+        ]
+        
+        subprocess.run(cmd, check=True, capture_output=True)
+        return FileResponse(output_path, media_type='image/png', filename="waveform.png")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-audio-info")
+async def get_audio_info(request: ProbeRequest):
+    """Get detailed audio file information"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        audio_path = download_file(request.audio_url, temp_dir, "audio")
+        
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", 
+            "-show_streams", "-select_streams", "a:0", audio_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to probe audio file")
+        
+        probe_data = json.loads(result.stdout)
+        
+        format_info = probe_data.get("format", {})
+        stream_info = probe_data.get("streams", [{}])[0] if probe_data.get("streams") else {}
+        
+        return {
+            "filename": format_info.get("filename", ""),
+            "format": format_info.get("format_name", ""),
+            "duration": float(format_info.get("duration", 0)),
+            "size": int(format_info.get("size", 0)),
+            "bitrate": int(format_info.get("bit_rate", 0)),
+            "codec": stream_info.get("codec_name", ""),
+            "channels": stream_info.get("channels", 0),
+            "sample_rate": int(stream_info.get("sample_rate", 0)),
+            "bits_per_sample": int(stream_info.get("bits_per_sample", 0)),
+            "tags": stream_info.get("tags", {})
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get-video-info")
+async def get_video_info(request: ProbeRequest):
+    """Get detailed video file information"""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        video_path = download_file(request.video_url, temp_dir, "video")
+        
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", 
+            "-show_streams", "-select_streams", "v:0", video_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Failed to probe video file")
+        
+        probe_data = json.loads(result.stdout)
+        
+        format_info = probe_data.get("format", {})
+        stream_info = probe_data.get("streams", [{}])[0] if probe_data.get("streams") else {}
+        
+        # Calculate frame rate
+        fps = 0
+        if stream_info.get("r_frame_rate"):
+            try:
+                num, den = stream_info["r_frame_rate"].split("/")
+                fps = float(num) / float(den)
+            except:
+                fps = 0
+        
+        return {
+            "filename": format_info.get("filename", ""),
+            "format": format_info.get("format_name", ""),
+            "duration": float(format_info.get("duration", 0)),
+            "size": int(format_info.get("size", 0)),
+            "bitrate": int(format_info.get("bit_rate", 0)),
+            "codec": stream_info.get("codec_name", ""),
+            "width": stream_info.get("width", 0),
+            "height": stream_info.get("height", 0),
+            "fps": round(fps, 2),
+            "pixel_format": stream_info.get("pix_fmt", ""),
+            "aspect_ratio": stream_info.get("display_aspect_ratio", ""),
+            "tags": stream_info.get("tags", {})
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "universal-audio-tools"}
@@ -315,11 +550,15 @@ async def health():
 async def root():
     return {
         "message": "Universal Audio Tools API",
-        "version": "3.0",
+        "version": "3.2",
         "tools": [
             "audio-to-video", "change-speed", "compress-mp3", "cut-mp3",
             "extract-audio", "change-volume", "merge-audio", "mix-audio",
             "remove-audio-from-video", "remove-noise", "remove-silence", "repair-m4a"
+        ],
+        "probe_tools": [
+            "probe-media", "get-duration", "get-thumbnail", "get-waveform",
+            "get-audio-info", "get-video-info"
         ],
         "health": "/health"
     }
