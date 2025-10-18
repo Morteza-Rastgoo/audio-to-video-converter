@@ -17,12 +17,18 @@ A simple API service that converts audio files to video files by combining them 
 
 **Endpoint:** `POST /convert`
 
-**Request:** JSON body with URLs
+**Request:** JSON body with options
 
 ```json
 {
   "audio_url": "https://example.com/audio.mp3",
-  "image_url": "https://example.com/image.jpg"  // optional
+  "image_url": "https://example.com/image.jpg",  // optional
+  "image_color": "Black",  // optional: Azure, Black, Blue, Brown, Cyan, Fuchsia, Gold, Gray, Green, Maroon, Navy, Olive, Orange, Pink, Purple, Red, Silver, Skyblue, White, Yellow
+  "duration": "default",  // "default" or seconds like "10"
+  "effect": "zoom_in_center",  // optional: zoom_in_center, pan_left, etc.
+  "effect_duration": 5.0,
+  "effect_enlarge": 1.2,
+  "effect_background": "default"
 }
 ```
 
@@ -32,11 +38,15 @@ Example using curl:
 ```bash
 curl -X POST "http://audio-to-video:8000/convert" \
      -H "Content-Type: application/json" \
-     -d '{"audio_url": "https://example.com/audio.mp3"}' \
+     -d '{"audio_url": "https://example.com/audio.mp3", "image_color": "Black", "duration": "10"}' \
      -o output.mp4
 ```
 
-If `image_url` is not provided, the API will attempt to use album art from the audio file.
+Options:
+- `image_url`: Custom background image URL
+- `image_color`: Solid color background (takes precedence over image_url and album art)
+- `duration`: "default" for full audio length, or fixed seconds
+- `effect`: Video effect to apply (currently supports zoom_in_center)
 
 ## Running
 
